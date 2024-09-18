@@ -2,9 +2,20 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎥</text></svg>">
     <title>Video chat</title>
+    <link rel="stylesheet" href="./index.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js" integrity="sha384-2huaZvOR9iDzHqslqwpR87isEmrfxqyWOF7hr7BY6KG0+hVKLoEXMPUJw3ynWuhO" crossorigin="anonymous" defer></script>
+    <script src="./index.js" defer></script>
   </head>
   <body>
-    <h1>Hello World!</h1>
+    <h1><u>Video chat</u>&#32;🎥</h1>
+    <h2 id="call_id"></h2>
+    <div class="video_frame"></div>
+    <div class="phone_panel">
+      <input id="call_input" type="text" placeholder="Call id" />
+      <button id="call_button">📞</button>
+    </div>
   </body>
 </html>

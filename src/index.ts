@@ -1,20 +1,36 @@
 import path from 'node:path';
+import http from 'node:http';
 
 import express from 'express';
-import helmet from 'helmet';
 import cors from 'cors';
+import logger from 'loglevel';
 
-const PORT = 3000;
-const URL = `http://localhost:${PORT}`;
+import { Server } from 'socket.io';
+
+import { isProd } from './helpers';
+import { URL, PORT } from './constants';
+
+logger.setLevel(isProd() ? 'INFO' : 'DEBUG');
 
 const app = express();
 
 app.use(
-  helmet(),
   cors({ origin: URL }),
   express.static(path.resolve(__dirname, '../public'))
 );
 
-app.listen(PORT, () => {
+const server = http.createServer(app);
+const io = new Server(server);
+
+io.on('connection', (socket) => {
+  logger.debug(`Connection established: ${socket.id}`);
+
+  socket.on('disconnect', (reason) => {
+    logger.debug(`Connection disconnected: ${socket.id}: ${reason}`);
+  });
+});
+
+
+server.listen(PORT, () => {
   console.log(`Listening on: ${URL}`);
 });

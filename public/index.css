@@ -1,0 +1,61 @@
+body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: white;
+  background-color: black;
+  min-height: 100vh;
+  margin: 0 0;
+}
+
+.video_frame {
+  display: flex;
+  width: 800px;
+  height: 600px;
+  border: 10px ridge rgb(243, 241, 241);
+  border-radius: 6px;
+  background-color: rgba(58, 57, 56, 0.377);
+  margin: 10px 10px;
+}
+
+.phone_panel {
+  display: flex;
+  flex-direction: row;
+}
+
+.phone_panel input {
+  width: 300px;
+  height: 36px;
+  margin: 10px;
+  border: 5px ridge rgb(255, 255, 255);
+  background-color: rgba(58, 57, 56, 0.377);
+  color: white;
+  font-size: larger;
+  padding: 2px 2px;
+  text-align: center;
+  transition: 0.2s;
+}
+
+.phone_panel input:hover {
+  transition: 0.2s;
+  background-color: rgb(39, 39, 39);
+}
+
+.phone_panel button {
+  width: 50px;
+  height: 50px;
+  margin: 10px;
+  color: white;
+  background-color: rgb(57, 110, 3);
+  border: 5px ridge rgb(255, 255, 255);
+  border-radius: 6px;
+  padding: 2px 2px;
+  text-align: center;
+  font-size: larger;
+  transition: 0.2s;
+}
+
+.phone_panel button:hover {
+  transition: 0.2s;
+  background-color: rgb(100, 192, 9);
+}

@@ -114,7 +114,7 @@ class Camera {
 }
 
 const client = new Client('http://localhost:3000');
-const ring = new RingAudio('./ring.mp3');
+const ring = new RingAudio('./media/ring.mp3');
 const call = new Call(ring);
 const camera = new Camera();
 

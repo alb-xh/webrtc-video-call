@@ -25,11 +25,25 @@ const io = new Server(server);
 io.on('connection', (socket) => {
   logger.debug(`Connection established: ${socket.id}`);
 
+  socket.on('message', async (toSocketId, message) => {
+    const fromSocketId = socket.id;
+
+    if (
+      fromSocketId === toSocketId ||
+      (await io.fetchSockets()).every((s) => s.id !== toSocketId)
+    ) {
+      socket.emit('receiver_not_found', toSocketId);
+      return;
+    }
+
+    io.to(toSocketId)
+      .emit('message', fromSocketId, message);
+  })
+
   socket.on('disconnect', (reason) => {
     logger.debug(`Connection disconnected: ${socket.id}: ${reason}`);
   });
 });
-
 
 server.listen(PORT, () => {
   console.log(`Listening on: ${URL}`);

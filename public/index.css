@@ -8,6 +8,13 @@ body {
   margin: 0 0;
 }
 
+.video_panel {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+}
+
 .video_frame {
   display: flex;
   width: 800px;
@@ -58,4 +65,12 @@ body {
 .phone_panel button:hover {
   transition: 0.2s;
   background-color: rgb(100, 192, 9);
+}
+
+.error {
+  border-color: red;
+}
+
+.hidden {
+  display: none;
 }

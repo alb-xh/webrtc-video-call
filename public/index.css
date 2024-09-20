@@ -68,9 +68,9 @@ body {
 }
 
 .error {
-  border-color: red;
+  border-color: red !important;
 }
 
 .hidden {
-  display: none;
+  display: none !important;
 }

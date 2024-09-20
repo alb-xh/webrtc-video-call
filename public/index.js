@@ -28,8 +28,8 @@ class Popups {
   static async unrecoverable () {
     return Popups.custom({
       icon: 'error',
-      title: 'Really bad error :(',
-      message: `Please refresh or contact me`,
+      title: 'Really bad error',
+      message: `Please refresh or contact me :(`,
     });
   }
 
@@ -62,35 +62,35 @@ class Popups {
 
 class WindowEnhancer {
   static enhance () {
-    window.addEventListener('error', async () => {
+    window.addEventListener('error', async (err) => {
       console.error(err);
       await Popups.unrecoverable();
     });
 
-    window.document.getDocumentByIdOrThrow = function (id) {
+    window.document.getElementByIdOrThrow = function (id) {
       const element = this.getElementById(id);
       if (!element) {
-        throw new Error(`Element "${name}" wasn't found`);
+        throw new Error(`Element "${id}" wasn't found`);
       }
 
       return element;
     }
 
-    window.appendClassName = function (el, className) {
-      el.className = el.className.split(' ')
+    window.document.appendClassName = function (element, className) {
+      element.className = (element.className ?? '').split(' ')
+        .filter(Boolean)
         .concat(className)
         .join(' ');
 
-      return el;
+      return element;
     }
 
-
-    window.document.removeClassName = function (el, className) {
-      el.className = el.className.split(' ')
+    window.document.removeClassName = function (element, className) {
+      element.className = (element.className ?? '').split(' ')
         .filter((name) => name !== className)
         .join(' ');
 
-      return element
+      return element;
     }
 
     return window;
@@ -125,134 +125,137 @@ class RingAudio extends Audio {
 class VideoCall {
   constructor (socket, rpConnection, ringAudio, camera) {
     this.socket = socket;
-    this.rpConnection = rpConnection
+    this.rpConnection = rpConnection;
     this.ringAudio = ringAudio;
     this.camera = camera;
 
     // internal
     this.activeCallId = null;
-    this._onStream = null;
+    this.eventHandlers = {};
   }
 
-
-  _onConnect () {
-    const el = document.getElementByIdOrThrow('callee_id')
-    el.textContent = `Your call id: ${this.socket.id}`;
-  }
-
-  _onConnectionError (err) {
-    if (!this.socket.active) {
-      throw err;
+  async _invokeEventHandler (event, ...args) {
+    const cb = this.eventHandlers[event];
+    if (cb) {
+      const res = await cb(...args);
+      return res;
     }
   }
 
-  async _onReceiverNotFound () {
-    await Popups.error({ title: 'User offline', text: 'Please try again later' });
-  }
-
-  _rejectCall (callerId) {
-    this.socket.emit('message', callerId, { type: 'call_response', payload: { accepted: false } });
-  }
-
-  async _acceptCall (callerId, sdp) {
-    await this.rp.setRemoteDescription(message.payload.description);
-    await this.rp.setLocalDescription(await this.rp.createAnswer());
-
-    this.socket.emit('message', callerId, { type: 'call_response', payload: { accepted: true, description: this.rp.localDescription } });
-  }
-
-  async _onCall (callerId, payload) {
+  async _safeCall (callerId, cb) {
     if (this.activeCallId) {
-      this._rejectCall(callerId);
-      return;
+      throw new Error('Ongoing call in progress');
     }
 
     try {
       this.activeCallId = callerId;
-      this.ring.play();
+      this.ringAudio.play();
 
-      const { isConfirmed } = await Popups.questionable({ title: 'Call', message: `From: ${callerId}`, timer: 30000 });
-      if (!isConfirmed) {
-        this._rejectCall(callerId)
-        return;
-      }
-
-      await this._acceptCall();
-
-
+      await cb();
     } finally {
-      this.ring.pause();
+      this.ringAudio.pause();
       this.activeCallId = null;
     }
   }
 
-  async _onCallStop (callerId, payload) {
-    if (!this.activeCallId || this.activeCallId !== callerId) {
-      return;
+  _getMessageHandler (type) {
+    const onCall = async (callerId, payload) => {
+      const reject = () => {
+        this.socket.emit('message', callerId, { type: 'call_response', payload: { accepted: false } });
+      }
+
+      if (this.activeCallId) {
+        reject();
+        return;
+      }
+
+      await this._safeCall(callerId, async () => {
+        const accepted = await this._invokeEventHandler('call_received', callerId);
+        if (!accepted) {
+          reject();
+          return;
+        }
+
+        await this.rpConnection.setRemoteDescription(payload.description);
+        await this.rpConnection.setLocalDescription(await this.rpConnection.createAnswer());
+
+        this.socket.emit('message', callerId, { type: 'call_response', payload: { accepted: true, description: this.rpConnection.localDescription } });
+      });
     }
 
-    await Popups.close();
-  }
+    const onCallStop = async (calleeId, payload) => {
+      if (!this.activeCallId || this.activeCallId !== calleeId) {
+        return;
+      }
 
-  async _onCallResponse (calleeId, payload) {
-    if (!this.activeCallId || this.activeCallId !== calleeId) {
-      return;
+      await this._invokeEventHandler('call_stopped', calleeId, payload);
     }
 
-    await Popups.close();
+    const onCallResponse = async (calleeId, payload) => {
+      if (!this.activeCallId || this.activeCallId !== calleeId) {
+        return;
+      }
 
-    if (!payload.accepted) {
-      return;
+      if (!payload.accepted) {
+        await this._invokeEventHandler('call_rejected', calleeId, payload);
+        return;
+      }
+
+      await this.rpConnection.setRemoteDescription(payload.description);
+
+      await this._invokeEventHandler('call_accepted', calleeId, payload);
     }
 
-    await this.rp.setRemoteDescription(payload.description);
-    await this.addOtherVideo(document);
-  }
-
-  async _onMessageReceived (senderId, message) {
-    const handlers = {
-      'call': this._onCall,
-      'call_stop': this._onCallStop,
-      'call_response': this._onCallResponse,
+    switch (type) {
+      case 'call': return onCall;
+      case 'call_stop': return onCallStop;
+      case 'call_response': return onCallResponse;
     }
-
-    const handler = handlers[type];
-    if (!handler) {
-      return;
-    }
-
-    await handler.call(this, senderId, message.payload);
   }
 
   _setupWebsocket () {
-    this.socket.on('connect', this._onConnect.bind(this));
-    this.socket.on('connect_err', this._onConnectionError.bind(this));
-    this.socket.on('receiver_not_found', this._onReceiverNotFound.bind(this));
-    this.socket.on('message', this._onMessageReceived.bind(this));
+    this.socket.on('connect', async () => {
+      await this._invokeEventHandler('caller_id', this.socket.id);
+    });
+
+    this.socket.on('connect_err', (err) => {
+      if (!this.socket.active) {
+        throw err;
+      }
+    });
+
+    this.socket.on('receiver_not_found', async () => {
+      await this._invokeEventHandler('receiver_not_found');
+    });
+
+    this.socket.on('message', async (senderId, message) => {
+      const handler = this._getMessageHandler(message.type);
+      if (handler) {
+        await handler(senderId, message.payload);
+      }
+    });
+
     this.socket.connect();
   }
 
-  _onTrack (e) {
-    console.log(e);
-
-    if (this._onStream) {
-      this._onStream(e.streams[0]);
-    }
-  }
-
   async _setupWebRTC () {
-    this.rp.addEventListener('track', this._onTrack.bind(this));
+    this.rpConnection.addEventListener('track', async (e) => {
+      console.log(e);
+      const stream = e.streams[0];
+
+      if (stream) {
+        await this._invokeEventHandler('incoming_video_stream', stream);
+      }
+    });
 
     const stream = await this.camera.getStream();
     const tracks = stream.getTracks();
 
     for (const track of tracks) {
-     this.rp.addTrack(track, stream);
+     this.rpConnection.addTrack(track, stream);
     }
-  }
 
-  onStream (cb) {
-    this._onStream = cb;
+    await this._invokeEventHandler('outgoing_video_stream', stream);
   }
 
   async setup () {
@@ -260,32 +263,25 @@ class VideoCall {
     await this._setupWebRTC();
   }
 
+  on (event, cb) {
+    this.eventHandlers[event] = cb
+  }
+
   isId (calleeId) {
     return typeof calleeId === 'string' && calleeId.length === 20;
   }
 
   async call (calleeId) {
-    if (this.activeCallId) {
-      throw new Error('Ongoing call in progress');
-    }
+    return this._safeCall(calleeId, async () => {
+      await this.rpConnection.setLocalDescription(await this.rpConnection.createOffer());
 
-    try {
-      this.activeCallId = calleeId;
-      this.ring.play();
+      this.socket.emit('message', calleeId, { type: 'call', payload: { description: this.rpConnection.localDescription } });
 
-      await this.rp.setLocalDescription(await this.rp.createOffer());
-
-      this.socket.emit('message', calleeId, { type: MessageType.Call, payload: { description: this.rp.localDescription } });
-
-      const { isDismissed } = await Popups.cancelable({ title: 'Calling...' });
-
-      if (isDismissed) {
-        this.socket.emit('message', calleeId, { type: MessageType.CallStop } );
+      const canceled = await this._invokeEventHandler('calling', calleeId);
+      if (canceled) {
+        this.socket.emit('message', calleeId, { type: 'call_stop' } );
       }
-    } finally {
-      this.ring.pause();
-      this.activeCallId = null;
-    }
+    });
   }
 }
 
@@ -294,47 +290,80 @@ class Main {
     this.videoCall = videoCall;
   }
 
-  _onCalleeIdInputFocus () {
-    const input = document.getElementByIdOrThrow('call_input');
-    document.removeClassName(input, 'error');
-  }
+  async _setupVideoCall () {
+    videoCall.on('caller_id', (callerId) => {
+      const el = document.getElementByIdOrThrow('callee_id')
+      el.textContent = `Your call id: ${callerId}`;
+    });
 
-  async _onCallButtonClick () {
-    const input = document.getElementByIdOrThrow('call_input');
+    videoCall.on('receiver_not_found', async () => {
+      await Popups.error({ title: 'User offline', text: 'Please try again later' });
+    });
 
-    if (!this.videoCall.isId(input.value)) {
-      document.appendClassName(input, 'error');
-      return;
-    }
-
-    await this.videoCall.call(calleeId);
-  }
-
-  async run () {
-    WindowEnhancer.enhance();
-
-    videoCall.onCall((stream) => {
+    videoCall.on('incoming_video_stream', (stream) => {
       const video = document.getElementByIdOrThrow('other_video')
       video.srcObject = stream;
 
       document.removeClassName(video, 'hidden');
     });
 
-    videoCall.onCallStop(() => {
-      const video = document.getElementByIdOrThrow('other_video')
-      document.appendClassName(video, 'hidden');
+    videoCall.on('outgoing_video_stream', (stream) => {
+      const video = document.getElementByIdOrThrow('own_video')
+      video.srcObject = stream;
     });
 
-    await this.videoCall.setup();
+    videoCall.on('call_accepted', async () => {
+      await Popups.close()
+    });
 
-    document
-      .getElementByIdOrThrow('call_input')
-      .addEventListener('focus', this._onCalleeIdInputFocus.bind(this));
+    videoCall.on('call_rejected', async () => {
+      await Popups.close()
+    });
 
-    document
-      .getElementByIdOrThrow('call_button')
-      .addEventListener('focus', this._onCallButtonClick.bind(this));
+    videoCall.on('call_stopped', async () => {
+      await Popups.close()
+    });
 
+
+    videoCall.on('call_received', async (callerId, accept, reject) => {
+      const { isConfirmed } = await Popups.questionable({ title: 'Call', message: `From: ${callerId}`, timer: 30000 });
+      return isConfirmed;
+    });
+
+    videoCall.on('calling', async () => {
+      const { isDismissed } = await Popups.cancelable({ title: 'Calling...' });
+      return isDismissed
+    });
+
+    await videoCall.setup();
+  }
+
+  setupHandlers () {
+    const input = document.getElementByIdOrThrow('call_input');
+    const button = document.getElementByIdOrThrow('call_button')
+
+    input.addEventListener('focus', () => {
+      const input = document.getElementByIdOrThrow('call_input');
+      document.removeClassName(input, 'error');
+    });
+
+    button.addEventListener('click', async () => {
+      const calleeId = input.value;
+
+      if (!this.videoCall.isId(calleeId)) {
+        document.appendClassName(input, 'error');
+        return;
+      }
+
+      await this.videoCall.call(calleeId);
+    });
+  }
+
+
+  async run () {
+    WindowEnhancer.enhance();
+    await this._setupVideoCall();
+    this.setupHandlers();
   }
 }
 

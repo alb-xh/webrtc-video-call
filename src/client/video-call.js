@@ -17,57 +17,51 @@ export class VideoCall extends Call {
 
   async call (calleeId) {
     try {
-      this.ringAudio.play();
+      await this.ringAudio.play();
 
       await this.rpConnection.setLocalDescription(await this.rpConnection.createOffer());
       super.call(calleeId, this.rpConnection.localDescription);
     } finally {
-      this.ringAudio.pause();
+      await this.ringAudio.pause();
     }
   }
 
   async accept () {
     try {
-      await this.rp.setLocalDescription(this.rp.createAnswer());
-      super.accept(this.rp.localDescription);
+      await this.rpConnection.setLocalDescription(await this.rpConnection.createAnswer());
+      super.accept(this.rpConnection.localDescription);
     } finally {
-      this.ringAudio.pause();
+      await this.ringAudio.pause();
     }
   }
 
   async reject () {
     try {
-      await this.rp.setRemoteDescription(null);
       super.reject()
     } finally {
-      this.ringAudio.pause();
+      await this.ringAudio.pause();
     }
   }
 
-  async stop () {
-    await this.rp.setRemoteDescription(null);
-    await this.rp.setLocalDescription(null);
-    super.stop();
-  }
 
   async connect () {
     super.connect();
 
     this.on(VideoCall.Event.Call, async (callerId, payload) => {
-      this.ringAudio.play();
-      await this.rp.setRemoteDescription(payload);
+      await this.ringAudio.play();
+      await this.rpConnection.setRemoteDescription(payload);
     });
 
-    this.on(VideoCall.Event.CallAcceptance, async () => {
-      this.ringAudio.pause();
+    this.on(VideoCall.Event.CallAcceptance, async (calleeId, payload) => {
+      await this.rpConnection.setRemoteDescription(payload);
+      await this.ringAudio.pause();
     });
 
-    this.on(VideoCall.Event.CallRejection, () => {
-      this.ringAudio.pause();
+    this.on(VideoCall.Event.CallRejection, async () => {
+      await this.ringAudio.pause();
     });
 
     this.rpConnection.addEventListener('track', async (e) => {
-      console.log(e);
       const stream = e.streams[0];
 
       if (stream) {

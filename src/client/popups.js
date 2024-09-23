@@ -1,5 +1,5 @@
 // Swal from CDN
-class Popups {
+export class Popups {
   static async custom (args) {
     return Swal.fire({
       icon: args.icon ?? '',

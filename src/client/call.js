@@ -25,6 +25,8 @@ export class Call extends EventEmitter {
   }
 
   constructor (ws) {
+    super();
+
     this.ws = ws;
     this.callerId = null;
     this.calleeId = null;
@@ -36,11 +38,11 @@ export class Call extends EventEmitter {
       throw new Call.Forbidden();
     }
 
+    this.ws.emit('message', calleeId, { event: Call.Event.Call, payload });
+
     this.status = Call.Status.Calling;
     this.callerId = this.ws.id;
     this.calleeId = calleeId;
-
-    this.ws.emit('message', calleeId, { event: Call.Event.Call, payload });
   }
 
   accept (payload) {
@@ -48,9 +50,9 @@ export class Call extends EventEmitter {
       throw new Call.Forbidden();
     }
 
-    this.status = Call.Status.Active;
-
     this.ws.emit('message', this.callerId, { event: Call.Event.CallAcceptance, payload });
+
+    this.status = Call.Status.Active;
   }
 
   reject () {
@@ -58,28 +60,28 @@ export class Call extends EventEmitter {
       throw new Call.Forbidden();
     }
 
+    this.ws.emit('message', this.callerId, { event: Call.Event.CallRejection });
+
     this.status = Call.Status.Idle;
     this.callerId = null;
-    this.calleeId = null,
-
-    this.ws.emit('message', this.callerId, { event: Call.Event.CallRejection });
+    this.calleeId = null;
   }
 
   stop () {
-    if (this.status !== Call.Status.Active) {
+    if (this.status == Call.Status.Idle) {
       throw new Call.Forbidden();
     }
 
+    this.ws.emit('message', this.callerId === this.ws.id ? this.calleeId : this.callerId, { event: Call.Event.CallTermination });
+
     this.status = Call.Status.Idle;
     this.callerId = null;
-    this.calleeId = null,
-
-    this.ws.emit('message', this.callerId === this.ws.id ? this.calleeId : this.callerId, { event: Call.Event.CallTermination });
+    this.calleeId = null;
   }
 
   connect () {
     this.ws.on('connect', () => {
-      this.emit(CallEvent.SubscriberId, this.ws.id);
+      this.emit(Call.Event.SubscriberId, this.ws.id);
     });
 
     this.ws.on('connect_err', (err) => {
@@ -89,7 +91,7 @@ export class Call extends EventEmitter {
     });
 
     this.ws.on('receiver_not_found', () => {
-      this.emit(CallEvent.SubscriberNotFound);
+      this.emit(Call.Event.SubscriberNotFound);
     });
 
     const onCall = (callerId, payload) => {
@@ -160,13 +162,13 @@ export class Call extends EventEmitter {
       [Call.Event.CallUnavailable]: onUnavailable,
     }
 
-    this.ws.on('message', async (senderId, { type, payload }) => {
-      const handler = onMessage[type];
+    this.ws.on('message', async (senderId, { event, payload }) => {
+      const handler = onMessage[event];
       if (handler) {
         handler.call(this, senderId, payload)
       }
     });
 
-    this.socket.connect();
+    this.ws.connect();
   }
 }

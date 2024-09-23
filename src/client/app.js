@@ -1,5 +1,6 @@
 import { Validator } from "./validator";
 import { VideoCall } from "./video-call";
+import { Popups } from './popups';
 
 export class App {
   constructor (videoCall) {
@@ -25,8 +26,8 @@ export class App {
 
       await this.videoCall.call(calleeId);
 
-      const { isDismissed } = await Popups.cancelable({ title: 'Calling...' });
-      if (isDismissed) {
+      const { dismiss } = await Popups.cancelable({ title: 'Calling...' });
+      if (dismiss === 'cancel') {
         await this.videoCall.stop();
       }
     });
@@ -38,18 +39,6 @@ export class App {
 
     this.videoCall.on(VideoCall.Event.SubscriberNotFound, async () => {
       await Popups.error({ title: 'User offline', text: 'Please try again later' });
-    });
-
-    this.videoCall.on(VideoCall.Event.IncomingVideo, (stream) => {
-      const video = document.getElementByIdOrThrow('other_video')
-      video.srcObject = stream;
-
-      document.removeClassName(video, 'hidden');
-    });
-
-    this.videoCall.on(VideoCall.Event.OutgoingVideo, (stream) => {
-      const video = document.getElementByIdOrThrow('own_video')
-      video.srcObject = stream;
     });
 
     this.videoCall.on(VideoCall.Event.CallAcceptance, async () => {
@@ -73,6 +62,21 @@ export class App {
         await this.videoCall.reject();
       }
     });
+
+    this.videoCall.on(VideoCall.Event.IncomingVideo, (stream) => {
+      console.log('Incoming', stream)
+      const video = document.getElementByIdOrThrow('other_video')
+      video.srcObject = stream;
+
+      document.removeClassName(video, 'hidden');
+    });
+
+    this.videoCall.on(VideoCall.Event.OutgoingVideo, (stream) => {
+      console.log('Outgoing', stream)
+      const video = document.getElementByIdOrThrow('own_video')
+      video.srcObject = stream;
+    });
+
 
     await this.videoCall.connect();
   }

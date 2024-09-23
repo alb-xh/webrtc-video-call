@@ -9,7 +9,7 @@ export class EventEmitter {
   emit (event, ...args) {
     const handlers = this.handlers[event] ?? [];
 
-    for (const handler of handler) {
+    for (const handler of handlers) {
       handler(...args);
     }
   }

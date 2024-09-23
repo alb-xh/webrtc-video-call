@@ -16,7 +16,7 @@ const app = express();
 
 app.use(
   cors({ origin: URL }),
-  express.static(path.resolve(__dirname, '../public'))
+  express.static(path.resolve(__dirname, '../../public'))
 );
 
 const server = http.createServer(app);

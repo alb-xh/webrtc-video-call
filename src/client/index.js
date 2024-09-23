@@ -2,7 +2,7 @@ import { Config } from "./config";
 import { WindowEnhancer } from "./window-enhancer";
 import { Camera } from "./camera";
 import { RingAudio } from "./ring-audio";
-import { VideoCall } from "./video-call-o;d";
+import { VideoCall } from "./video-call";
 import { App } from './app';
 
 // io from CDN

@@ -52,7 +52,7 @@ export class VideoCall extends EventEmitter {
 
     rpConnection.addEventListener('icecandidate', (ev) => {
       if (ev.candidate) {
-        this.emit(VideoCall.Event.IceCandidate, ev.candidate);
+        this.ws.emit('message', this.getInterlocutorId(), { event: VideoCall.Event.IceCandidate, payload: ev.candidate });
       }
     });
 

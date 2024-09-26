@@ -13,9 +13,8 @@ const socket = io(Config.getSocketUrl(), {
 
 const ringAudio = new RingAudio(Config.getRingMediaUrl());
 const camera = new Camera();
-const rpConnection = new RTCPeerConnection();
 
-const videoCall = new VideoCall(socket, rpConnection, ringAudio, camera);
+const videoCall = new VideoCall(socket, ringAudio, camera);
 const app = new App(videoCall);
 
 app.run(WindowEnhancer.enhance(window));

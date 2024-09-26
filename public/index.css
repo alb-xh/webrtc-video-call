@@ -67,6 +67,22 @@ body {
   background-color: rgb(100, 192, 9);
 }
 
+#call_button {
+  background-color: rgb(57, 110, 3);
+}
+
+#call_button:hover {
+  background-color: rgb(100, 192, 9);
+}
+
+#call_stop_button {
+  background-color: rgb(110, 3, 3);
+}
+
+#call_stop_button:hover {
+  background-color: rgb(192, 9, 9);
+}
+
 .error {
   border-color: red !important;
 }

@@ -1,5 +1,5 @@
 export class Validator {
-  static isSubscriberId (id) {
+  static isSocketId (id) {
     return typeof id === 'string' && id.length === 20;
   }
 }

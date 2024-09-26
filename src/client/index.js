@@ -1,6 +1,5 @@
 import { Config } from "./config";
 import { WindowEnhancer } from "./window-enhancer";
-import { Camera } from "./camera";
 import { RingAudio } from "./ring-audio";
 import { VideoCall } from "./video-call";
 import { App } from './app';
@@ -12,9 +11,7 @@ const socket = io(Config.getSocketUrl(), {
 });
 
 const ringAudio = new RingAudio(Config.getRingMediaUrl());
-const camera = new Camera();
-
-const videoCall = new VideoCall(socket, ringAudio, camera);
+const videoCall = new VideoCall(socket, ringAudio);
 const app = new App(videoCall);
 
 app.run(WindowEnhancer.enhance(window));

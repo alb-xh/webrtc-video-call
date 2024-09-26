@@ -1,4 +1,5 @@
 import { EventEmitter } from "./event-emitter";
+import { Media } from "./media";
 
 export class VideoCall extends EventEmitter {
   Forbidden = class extends Error {
@@ -31,12 +32,11 @@ export class VideoCall extends EventEmitter {
     IceCandidate: 'ice_candidate',
   }
 
-  constructor (ws, ringAudio, camera) {
+  constructor (ws, ringAudio) {
     super();
 
     this.ws = ws;
     this.ringAudio = ringAudio;
-    this.camera = camera;
     this.status = VideoCall.Status.Idle;
     this.rpConnection = null;
     this.callerId = null;
@@ -64,10 +64,10 @@ export class VideoCall extends EventEmitter {
       }
     });
 
-    const cameraStream = await this.camera.getStream();
+    const stream = await Media.getVideoAudio();
 
-    for (const track of cameraStream.getTracks()) {
-      rpConnection.addTrack(track, cameraStream);
+    for (const track of stream.getTracks()) {
+      rpConnection.addTrack(track, stream);
     }
 
     return rpConnection;
@@ -311,6 +311,6 @@ export class VideoCall extends EventEmitter {
 
     this.ws.connect();
 
-    this.emit(VideoCall.Event.OutgoingVideo, await this.camera.getStream());
+    this.emit(VideoCall.Event.OutgoingVideo, await Media.getVideo());
   }
 }
